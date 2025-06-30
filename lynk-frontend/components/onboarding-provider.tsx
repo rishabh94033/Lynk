@@ -1,9 +1,8 @@
 "use client"
 
-import type React from "react"
-
-import { createContext, useContext, useState, useEffect } from "react"
-import { OnboardingFlow } from "./onboarding-flow"
+import { usePathname, useRouter } from "next/navigation"
+import { createContext, useContext, useEffect, useState } from "react"
+import WelcomePage from "../app/(auth_pages)/welcome/page"
 
 interface OnboardingContextType {
   isOnboarding: boolean
@@ -23,14 +22,20 @@ export function useOnboarding() {
 
 export function OnboardingProvider({ children }: { children: React.ReactNode }) {
   const [isOnboarding, setIsOnboarding] = useState(false)
+  const pathname = usePathname()
+  const router = useRouter()
 
   useEffect(() => {
-    // Check if user has completed onboarding
+    const ignoredRoutes = ["/signin", "/auth/login", "/onboarding"]
+
+    // If current path is an ignored route, don't trigger onboarding screen
+    if (ignoredRoutes.includes(pathname)) return
+
     const hasCompletedOnboarding = localStorage.getItem("lynk-onboarding-completed")
     if (!hasCompletedOnboarding) {
       setIsOnboarding(true)
     }
-  }, [])
+  }, [pathname])
 
   const completeOnboarding = () => {
     localStorage.setItem("lynk-onboarding-completed", "true")
@@ -42,9 +47,13 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     setIsOnboarding(true)
   }
 
+  const handleGetStarted = () => {
+    router.push("/onboarding")
+  }
+
   return (
     <OnboardingContext.Provider value={{ isOnboarding, completeOnboarding, startOnboarding }}>
-      {isOnboarding ? <OnboardingFlow onComplete={completeOnboarding} /> : children}
+      {isOnboarding ? <WelcomePage onGetStarted={handleGetStarted} /> : children}
     </OnboardingContext.Provider>
   )
 }

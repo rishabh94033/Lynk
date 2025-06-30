@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { MessageCircle, Users, Search, Hash, User, Menu, X } from "lucide-react"
-import { useOnboarding } from "@/components/onboarding-provider"
+
 
 const navigation = [
   { name: "Inbox", href: "/inbox", icon: MessageCircle },
@@ -21,7 +21,7 @@ const navigation = [
 export function Sidebar() {
   const pathname = usePathname()
   const [isCollapsed, setIsCollapsed] = useState(false)
-  const { startOnboarding } = useOnboarding()
+
 
   return (
     <>
@@ -99,14 +99,16 @@ export function Sidebar() {
             <ThemeToggle />
           </div>
           {!isCollapsed && (
+            <Link href={"/onboarding"}>
             <Button
               variant="ghost"
               size="sm"
-              onClick={startOnboarding}
+              
               className="w-full text-xs text-muted-foreground hover:text-foreground"
             >
               Restart Onboarding
             </Button>
+            </Link>
           )}
         </div>
       </div>

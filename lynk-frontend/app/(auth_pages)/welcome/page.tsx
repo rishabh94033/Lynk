@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { useSession } from "next-auth/react"
 import {
   Users,
   Hash,
@@ -24,6 +25,8 @@ import {
   AppleIcon as Safari,
 } from "lucide-react"
 import Link from "next/link"
+import { log } from "console"
+import { useRouter } from 'next/navigation'
 
 const features = [
   {
@@ -60,11 +63,33 @@ const browsers = [
 ]
 
 export default function WelcomePage() {
+   const { data: session, status } = useSession()
   const [isVisible, setIsVisible] = useState(false)
-
+const router = useRouter()
   useEffect(() => {
     setIsVisible(true)
   }, [])
+      const isLoggedIn = !!session?.user?.email // or `.name`
+    const href = isLoggedIn ? "/inbox" : "/welcome"
+
+  useEffect(() => {
+    if (status === "loading") {
+      return
+    }
+
+    const isLoggedIn = !!session?.user?.email // or `.name`
+    const href = isLoggedIn ? "/inbox" : "/welcome"
+    // const href = isLoggedIn ? "/inbox" : "/welcome"
+    router.push(href)
+  }, [status, session, router])
+
+  console.log("Status:", status)
+  console.log("Session:", session)
+  console.log("Is Logged In:", isLoggedIn)
+
+// Remove the following line, as it causes unreachable code:
+// return null // or a loading spinner
+
 
   return (
     <div className="min-h-screen bg-black text-white w-full overflow-x-hidden">
@@ -81,7 +106,7 @@ export default function WelcomePage() {
               </span>
             </div>
             <div className="hidden md:flex items-center space-x-8">
-              <button className="text-gray-300 hover:text-white transition-colors">Features</button>
+              {/* <button className="text-gray-300 hover:text-white transition-colors">Features</button> */}
               <button className="text-gray-300 hover:text-white transition-colors">Community</button>
               <button className="text-gray-300 hover:text-white transition-colors">Support</button>
               <Link href="/signin">
@@ -129,7 +154,7 @@ export default function WelcomePage() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link href="/inbox">
+                <Link href={href}>
                   <Button
                     size="lg"
                     className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-8 py-6 text-lg font-semibold rounded-2xl shadow-2xl hover:shadow-purple-500/25 transition-all duration-300 hover:scale-105 group"
@@ -371,7 +396,7 @@ export default function WelcomePage() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-16">
-            <Link href="/inbox">
+            <Link href={href}>
               <Button
                 size="lg"
                 className="bg-white text-purple-900 hover:bg-gray-100 px-12 py-6 text-xl font-bold rounded-2xl shadow-2xl hover:scale-105 transition-all duration-300 group"

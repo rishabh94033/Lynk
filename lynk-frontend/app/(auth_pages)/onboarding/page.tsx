@@ -11,6 +11,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
+import { useRouter } from "next/navigation"
+
 import {
   Camera,
   ArrowRight,
@@ -28,7 +30,10 @@ import {
   Zap,
   Heart,
   Rocket,
+  Mic,
 } from "lucide-react"
+import axios from "axios"
+import { useSession } from "next-auth/react"
 
 const steps = [
   { id: 1, title: "Profile", description: "Create your profile", icon: User },
@@ -137,6 +142,9 @@ const suggestedConnections = [
 ]
 
 export default function OnboardingPage() {
+      const session = useSession();
+      const router = useRouter();
+  
   const [currentStep, setCurrentStep] = useState(1)
   const [profile, setProfile] = useState({
     name: "",
@@ -151,6 +159,8 @@ export default function OnboardingPage() {
     notifications: false,
     contacts: false,
     location: false,
+    microphone: false,
+    camera: false,
   })
 
   const progress = (currentStep / steps.length) * 100
@@ -183,7 +193,9 @@ export default function OnboardingPage() {
     )
   }
 
-  const requestPermission = async (type: "notifications" | "contacts" | "location") => {
+  const requestPermission = async (
+    type: "notifications" | "contacts" | "location" | "microphone" | "camera"
+  ) => {
     if (type === "notifications") {
       if ("Notification" in window) {
         const permission = await Notification.requestPermission()
@@ -198,7 +210,50 @@ export default function OnboardingPage() {
           () => setPermissions((prev) => ({ ...prev, location: false })),
         )
       }
+    } else if (type === "microphone") {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        try {
+          await navigator.mediaDevices.getUserMedia({ audio: true })
+          setPermissions((prev) => ({ ...prev, microphone: true }))
+        } catch {
+          setPermissions((prev) => ({ ...prev, microphone: false }))
+        }
+      }
+    } else if (type === "camera") {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        try {
+          await navigator.mediaDevices.getUserMedia({ video: true })
+          setPermissions((prev) => ({ ...prev, camera: true }))
+        } catch {
+          setPermissions((prev) => ({ ...prev, camera: false }))
+        }
+      }
     }
+  }
+
+
+  function handleSubmit() {
+    const res=axios.post("http://localhost:5000/api/user/userinfo", {
+      username: profile.username,
+      name: profile.name,
+      phone: profile.phone,
+      email: session.data?.user?.email,
+      bio: profile.bio,
+      location: profile.location,
+      interests: selectedInterests.map((id) => interests.find((i) => i.id === id)?.name || ""),
+    })
+  res.then((response) => {
+    if (response.status === 201 || response.status === 200) {
+      axios.post("http://localhost:5000/api/user/setonboardtrue", {
+        email: session.data?.user?.email,
+      })
+      router.push("/inbox")
+    } else {
+      console.error("Failed to save profile:", response.data)
+    }
+  }).catch((error) => {
+    console.error("Error saving profile:", error)
+  })
   }
 
   return (
@@ -557,36 +612,71 @@ export default function OnboardingPage() {
                     </Button>
                   </div>
 
-                  <div className="flex items-center justify-between p-6 rounded-2xl border bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
-                        <Users className="h-6 w-6 text-white" />
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-lg">Contact Access</h4>
-                        <p className="text-sm text-muted-foreground">Find friends who are already on Lynk</p>
-                      </div>
-                    </div>
-                    <Button
-                      onClick={() => requestPermission("contacts")}
-                      variant={permissions.contacts ? "default" : "outline"}
-                      size="lg"
-                      className={
-                        permissions.contacts
-                          ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
-                          : ""
-                      }
-                    >
-                      {permissions.contacts ? (
-                        <div className="flex items-center space-x-2">
-                          <Check className="h-4 w-4" />
-                          <span>Enabled</span>
-                        </div>
-                      ) : (
-                        "Enable"
-                      )}
-                    </Button>
-                  </div>
+  {/* Camera Access */}
+  <div className="flex items-center justify-between p-6 rounded-2xl border bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20">
+    <div className="flex items-center space-x-4">
+      <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center">
+        <Camera className="h-6 w-6 text-white" />
+      </div>
+      <div>
+        <h4 className="font-semibold text-lg">Camera Access</h4>
+        <p className="text-sm text-muted-foreground">Enable video features in Lynk</p>
+      </div>
+    </div>
+    <Button
+      onClick={() => requestPermission("camera")}
+      variant={permissions.camera ? "default" : "outline"}
+      size="lg"
+      className={
+        permissions.camera
+          ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+          : ""
+      }
+    >
+      {permissions.camera ? (
+        <div className="flex items-center space-x-2">
+          <Check className="h-4 w-4" />
+          <span>Enabled</span>
+        </div>
+      ) : (
+        "Enable"
+      )}
+    </Button>
+  </div>
+   
+
+                  <div className="flex items-center justify-between p-6 rounded-2xl border bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20">
+    <div className="flex items-center space-x-4">
+      <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+        <Mic className="h-6 w-6 text-white" />
+      </div>
+      <div>
+        <h4 className="font-semibold text-lg">Microphone Access</h4>
+        <p className="text-sm text-muted-foreground">Enable voice features in Lynk</p>
+      </div>
+    </div>
+    <Button
+      onClick={() => requestPermission("microphone")}
+      variant={permissions.microphone ? "default" : "outline"}
+      size="lg"
+      className={
+        permissions.microphone
+          ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+          : ""
+      }
+    >
+      {permissions.microphone ? (
+        <div className="flex items-center space-x-2">
+          <Check className="h-4 w-4" />
+          <span>Enabled</span>
+        </div>
+      ) : (
+        "Enable"
+      )}
+    </Button>
+  </div>
+
+
 
                   <div className="flex items-center justify-between p-6 rounded-2xl border bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20">
                     <div className="flex items-center space-x-4">
@@ -707,7 +797,13 @@ export default function OnboardingPage() {
               </div>
 
               <Button
-                onClick={nextStep}
+                onClick={() => {
+    if (currentStep === steps.length) {
+      handleSubmit();
+    } else {
+      nextStep();
+    }
+  }}
                 className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 flex items-center space-x-2 h-12 px-6 shadow-lg hover:shadow-xl transition-all duration-300"
                 disabled={
                   (currentStep === 1 && (!profile.name || !profile.username )) ||

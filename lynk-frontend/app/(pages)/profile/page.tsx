@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,6 +10,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import { Camera, Edit, Bell, Shield, Palette, MessageCircle, Users, Hash, Calendar } from "lucide-react"
+import { signOut } from "next-auth/react"
+import { useSession } from "next-auth/react"
+import axios from "axios"
 
 const userStats = [
   { label: "Messages Sent", value: "2,847", icon: MessageCircle },
@@ -19,15 +22,15 @@ const userStats = [
 ]
 
 export default function ProfilePage() {
+  const session = useSession()
   const [isEditing, setIsEditing] = useState(false)
   const [profile, setProfile] = useState({
-    name: "John Doe",
-    username: "@johndoe",
-    email: "john.doe@example.com",
-    phone: "+1 (555) 123-4567",
-    bio: "Product designer passionate about creating beautiful and functional user experiences. Love connecting with fellow creatives!",
-    location: "San Francisco, CA",
-    website: "johndoe.design",
+    name: "",
+    username: "",
+    email: "",
+    phone: "",
+    bio: "",
+    location: "",
   })
 
   const [settings, setSettings] = useState({
@@ -44,14 +47,66 @@ export default function ProfilePage() {
     },
   })
 
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const response = await fetch(`http://localhost:5000/api/user/profile?email=${session.data?.user?.email}`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) throw new Error("Failed to fetch profile");
+
+        const data = await response.json();
+        setProfile(data);
+      } catch (error) {
+        console.error("Error fetching profile:", error);
+      }
+    }
+    fetchProfile();
+  }, [session.data?.user?.email]);
+
+
+  async function handleSaveProfile(){
+    const res= await axios.post("http://localhost:5000/api/user/userinfo", {
+      email: session.data?.user?.email,
+      name: profile.name,
+      username: profile.username,
+      phone: profile.phone,
+      bio: profile.bio,
+      location: profile.location,
+    }
+  )
+
+    if (res.status === 201 || res.status === 200) {
+      setIsEditing(false);
+      alert("Profile updated successfully!");
+    } else {
+      alert("Failed to update profile. Please try again.");
+    } 
+
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="p-6 border-b bg-card/50 backdrop-blur-sm">
+      <div className="p-6 border-b bg-card/50 backdrop-blur-sm flex justify-between">
+    <div>
         <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
           Profile
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">Manage your account and preferences</p>
+        <p className="text-sm text-muted-foreground mt-1">Manage your account and preferences</p></div>
+        <div>
+        <Button
+          variant="outline"
+          className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+          onClick={() => signOut({ callbackUrl: "/signin" })} // Sign out button
+        >
+         Log-Out
+        </Button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -94,7 +149,12 @@ export default function ProfilePage() {
                       </div>
 
                       <Button
-                        onClick={() => setIsEditing(!isEditing)}
+                       onClick={() => {
+    if (isEditing) {
+      handleSaveProfile(); // Send request only when saving
+    }
+    setIsEditing((prev) => !prev); // Toggle edit mode
+  }}
                         variant={isEditing ? "default" : "outline"}
                         className={isEditing ? "bg-gradient-to-r from-purple-500 to-pink-500" : ""}
                       >
@@ -159,7 +219,7 @@ export default function ProfilePage() {
                           disabled={!isEditing}
                         />
                       </div>
-                      <div className="space-y-2">
+                      {/* <div className="space-y-2">
                         <Label htmlFor="website">Website</Label>
                         <Input
                           id="website"
@@ -167,7 +227,7 @@ export default function ProfilePage() {
                           onChange={(e) => setProfile({ ...profile, website: e.target.value })}
                           disabled={!isEditing}
                         />
-                      </div>
+                      </div> */}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="bio">Bio</Label>

@@ -2,25 +2,36 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { MessageCircle, Users, Search, Hash, User, Menu, X } from "lucide-react"
-
+import { useSession } from "next-auth/react"
 
 const navigation = [
   { name: "Inbox", href: "/inbox", icon: MessageCircle },
-  { name: "Contacts", href: "/contacts", icon: Users },
+  // { name: "Contacts", href: "/contacts", icon: Users },
   { name: "Search", href: "/search", icon: Search },
   { name: "Rooms", href: "/rooms", icon: Hash },
   { name: "Profile", href: "/profile", icon: User },
 ]
 
 export function Sidebar() {
-  const pathname = usePathname()
-  const [isCollapsed, setIsCollapsed] = useState(false)
+const { data: session, status } = useSession()
+const router = useRouter();
+const pathname = usePathname()
+const [isCollapsed, setIsCollapsed] = useState(false)
+  if (status === "loading") {
+  return 
+  // <div>Loading...</div>; // prevent flashing or premature render
+}
+
+if (!session) {
+  router.push("/signin");
+  return null;
+}
 
 
   return (
@@ -57,7 +68,7 @@ export function Sidebar() {
             </Avatar>
             {!isCollapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">John Doe</p>
+                <p className="text-sm font-medium truncate">{session?.user?.name}</p>
                 <p className="text-xs text-muted-foreground truncate">Online</p>
               </div>
             )}

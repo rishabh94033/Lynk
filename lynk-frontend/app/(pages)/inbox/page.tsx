@@ -1,13 +1,14 @@
-"use client"
-
-import { useState } from "react"
+"use client";
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Search, Plus, MoreVertical } from "lucide-react"
-
+import { useSession } from "next-auth/react";
+import axios from "axios"
+import { useRouter } from "next/navigation";
 const conversations = [
   {
     id: 1,
@@ -59,12 +60,48 @@ const conversations = [
 ]
 
 export default function InboxPage() {
-    console
-  const [searchQuery, setSearchQuery] = useState("")
+        const router = useRouter()
+  
+    const { data: session, status } = useSession();
+    const [searchQuery, setSearchQuery] = useState("")
 
   const filteredConversations = conversations.filter((conv) =>
     conv.name.toLowerCase().includes(searchQuery.toLowerCase()),
   )
+console.log("email is "+session?.user?.email)
+useEffect(() => {
+  // Only run if session exists
+
+  if (status !== "loading") {
+    if (!session) {
+      router.push("/signin");
+      return;
+    }
+  const res = axios.post("http://localhost:5000/api/user/isonboarded", {
+    email: session?.user?.email,
+  });
+
+  res.then((response) => {
+    if (response.data.onboarded === false) {
+      router.push("/onboarding");
+    }
+  }).catch((error) => {
+    console.error("Error checking onboarding status:", error);
+  });
+  }
+}, [session?.user?.email, session, router]);
+
+ if (status === "loading") {
+  return <div>Loading...</div>; // prevent flashing or premature render
+}
+
+if (!session) {
+  router.push("/signin");
+  return null;
+}
+
+console.log("Session data:", session);
+ 
 
   console.log("Rendering InboxPage")
   return (
@@ -84,7 +121,9 @@ export default function InboxPage() {
           <Plus className="h-4 w-4" />
         </Button>
       </div>
-
+{/* <div>
+      {JSON.stringify(session.data?.user?.email)}
+    </div> */}
       {/* Search */}
       <div className="p-4 border-b">
         <div className="relative">

@@ -14,8 +14,6 @@ import { Eye, EyeOff, Mail, Lock, User, ArrowRight, Check } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 
-
-
 export default function SignupPage() {
       const router = useRouter()
 
@@ -37,6 +35,8 @@ export default function SignupPage() {
     alert("You must agree to the terms to continue.")
     return
   }
+
+ 
 
   const strength = passwordStrength(formData.password)
   if (strength < 3) {
@@ -98,6 +98,79 @@ export default function SignupPage() {
     }
   }
 
+  async function handlesubmit(event: React.MouseEvent<HTMLButtonElement, MouseEvent>) {
+    event.preventDefault();
+
+    if (!agreedToTerms) {
+      alert("You must agree to the terms to continue.");
+      return;
+    }
+
+    if (!formData.email || !formData.password || !formData.name) {
+      alert("Please fill in all fields.");
+      return;
+    }
+
+    if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      alert("Please enter a valid email address.");
+      return;
+    }
+
+    if (formData.password.length < 8) {
+      alert("Password must be at least 8 characters long.");
+      return;
+    }
+
+    if (!/^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/.test(formData.password)) {
+      alert("Password must contain at least one uppercase letter, one number, and one special character.");
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      alert("Passwords do not match.");
+      return;
+    }
+
+    const strength = passwordStrength(formData.password);
+    if (strength < 3) {
+      alert("Password is too weak. Use a mix of uppercase, number, and symbols.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch("http://localhost:5000/api/user/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          name: formData.name,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (data.error === "Email already in use. Please log in or use another email.") {
+          alert("Email already in use. Please log in or use another email.");
+        } else {
+          alert(data.error || "An error occurred while creating your account.");
+        }
+        return;
+      }
+
+      alert("Account created successfully!");
+      router.push("/signin");
+    } catch (error) {
+      console.error("Error creating account:", error);
+      alert("An unexpected error occurred. Please try again later.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
   return (
     <div>
     {/* <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-cyan-50 dark:from-gray-900 dark:via-purple-900/20 dark:to-pink-900/20 flex items-center justify-center p-4"> */}
@@ -114,7 +187,7 @@ export default function SignupPage() {
               <span className="text-white font-bold text-2xl">L</span>
             </div>
             <div>
-              <CardTitle className="text-2xl font-bold">Sign-In to your Account</CardTitle>
+              <CardTitle className="text-2xl font-bold">Create your account</CardTitle>
               <CardDescription className="text-base">Join the conversation and connect with others</CardDescription>
             </div>
           </CardHeader>
@@ -134,6 +207,22 @@ export default function SignupPage() {
                   placeholder="Enter your email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="h-12 bg-background/50 backdrop-blur-sm border-muted focus:border-purple-500 transition-colors"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email" className="flex items-center space-x-2">
+                  <Mail className="h-4 w-4" />
+                  <span>Name</span>
+                </Label>
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="Enter your name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="h-12 bg-background/50 backdrop-blur-sm border-muted focus:border-purple-500 transition-colors"
                   required
                 />
@@ -237,28 +326,7 @@ export default function SignupPage() {
               </div>
 
               <Button
-              // onClick={()=>{router.push("/inbox")}}
-              onClick={async (e) => {
-               e.preventDefault();
-  setIsLoading(true);
-
-  const result = await signIn("credentials", {
-    redirect: false,
-    username: formData.email,
-    password: formData.password,
-    callbackUrl: "/inbox", // this is optional when using router.push
-  });
-
-  setIsLoading(false);
-
-  if (result?.ok) {
-    router.push("/inbox"); // ✅ Navigate after successful login
-  } else {
-    // Handle error, e.g., invalid credentials
-    console.error("Login failed", result?.error);
-    alert("Login failed. Please check your credentials.");
-  }
-}}
+              onClick={handlesubmit}  
                 type="submit"
                 className="w-full h-12 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold rounded-xl transition-all duration-300 hover:scale-105 hover:shadow-lg"
                 disabled={isLoading || !agreedToTerms || formData.password !== formData.confirmPassword}
@@ -266,29 +334,16 @@ export default function SignupPage() {
                 {isLoading ? (
                   <div className="flex items-center space-x-2">
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    <span>Signing in.....</span>
+                    <span>Creating account...</span>
                   </div>
                 ) : (
                   <div className="flex items-center space-x-2">
-                    <span>Sign-In to your account</span>
+                    <span>Create Account</span>
                     <ArrowRight className="h-4 w-4" />
                   </div>
                 )}
-              </Button >
+              </Button>
             </form>
-
-                <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <Separator className="w-full" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase items-center">
-                <span className="bg-background  text-muted-foreground mr-9  font-semibold text-xs">Don't have account?</span>
-                <Button type="submit"
-                onClick={()=>{router.push("/signup")}}
-                className="max-w-48 h-12 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold rounded-xl transition-all duration-300 hover:scale-105 hover:shadow-lg"><span>Create Account</span>
-                    <ArrowRight className="h-4 w-4" /></Button>
-              </div>
-            </div>
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">

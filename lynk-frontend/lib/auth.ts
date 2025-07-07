@@ -19,8 +19,8 @@ providers: [
       username: { label: "Username/Email", type: "text", placeholder: "Enter your email or username" },
       password: { label: "Password", type: "password" }
     },
-    async authorize(credentials, req) {
-       if (!credentials?.username || !credentials?.password) return null;
+    async authorize(credentials) {
+    if (!credentials?.username || !credentials?.password) return null;
 
     try {
       const response = await fetch("http://localhost:5000/api/user/signin", {
@@ -35,45 +35,55 @@ providers: [
       });
 
       const data = await response.json();
-
+console.log("id is "+data.user.id)
       if (!response.ok) return null;
 
+      
       return {
-        id: data.user.id,
+        id: data.user.id,        
         email: data.user.email,
         name: data.user.name,
-        image: data.user.image,
       };
     } catch (error) {
       console.error("Authorize error:", error);
       return null;
     }
-  },
+  }
     
   })
 ],
 callbacks: {
-  async signIn({ user, account }: { user: any; account: any }) {
-    if (account?.provider === "google") {
-      try {
-        const res = await axios.post("http://localhost:5000/api/user/google-signup", {
-          email: user.email,
-          name: user.name,
-          image: user.image,
-        });
+  async jwt({ token, user, account }: { token: any; user?: any; account?: any }) {
 
-        if (res.status !== 200 && res.status !== 201) {
-          console.error("Failed to sync Google user to backend.");
-          return false;
-        }
-      } catch (error) {
-        console.error("Error syncing Google user to backend:", error);
-        return false;
+    if (user) {
+        token.id = user.id; // this id is the user.id which we set in the credials provider.
       }
-    }
+      // Only on first login
+      if (account?.provider === "google" && user?.email) {
+        try {
+          const res = await axios.post("http://localhost:5000/api/user/google-signup", {
+            email: user.email,
+            name: user.name,
+            image: user.image,
+          });
 
-    return true;
+          const userFromBackend = res.data.data;
+
+          token.id = userFromBackend.id; // 👈 Set the id in the token
+        } catch (err) {
+          console.error("Error setting token.id from backend:", err);
+        }
+      }
+
+      return token;
+    },
+    async session({ session, token }: { session: any, token: any }) {
+  if (token?.id) {
+    session.user.id = token.id;
   }
+  return session;
+}
+
 },
 secret: process.env.NEXTAUTH_SECRET || "default_secret",
 }

@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import e from 'express';
 const prisma = new PrismaClient();
 const userRouter: Router = express.Router();
 
@@ -189,10 +190,11 @@ userRouter.post("/google-signup", async (req, res) => {
   }
 
   try {
-    const existingUser = await prisma.user.findUnique({ where: { email } });
+    let user = await prisma.user.findUnique({ where: { email } });
 
-    if (!existingUser) {
-      await prisma.user.create({
+    // If user does not exist, create one
+    if (!user) {
+      user = await prisma.user.create({
         data: {
           email,
           name,
@@ -202,12 +204,24 @@ userRouter.post("/google-signup", async (req, res) => {
       });
     }
 
-    res.status(200).json({ message: "Google user synced successfully." });
+    // ✅ Return user ID and any other data needed in session
+     res.status(200).json({
+      message: "Google user synced successfully.",
+      data: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        image: user.image,
+      },
+    });
+    return;
   } catch (err) {
     console.error("Error saving Google user:", err);
-    res.status(500).json({ error: "Internal server error" });
+     res.status(500).json({ error: "Internal server error" });
+     return;
   }
 });
+
 
 
 
@@ -251,6 +265,9 @@ userRouter.post('/signin', async (req: Request, res: Response)=> {
       .json({ error: "An internal server error occurred." });
   }
 });
+
+
+
 
 
 export default userRouter;

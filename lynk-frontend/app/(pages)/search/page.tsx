@@ -1,74 +1,127 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Search, Filter, MessageCircle, Users, Hash } from "lucide-react"
+import axios from "axios"
+import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 
-const searchResults = {
-  messages: [
-    {
-      id: 1,
-      text: "Hey, did you see the new project requirements?",
-      sender: "Sarah Wilson",
-      chat: "Sarah Wilson",
-      time: "2 hours ago",
-      avatar: "/placeholder.svg?height=32&width=32",
-    },
-    {
-      id: 2,
-      text: "The meeting is scheduled for tomorrow at 3 PM",
-      sender: "Mike Johnson",
-      chat: "Team Alpha",
-      time: "1 day ago",
-      avatar: "/placeholder.svg?height=32&width=32",
-    },
-  ],
-  people: [
-    {
-      id: 1,
-      name: "Sarah Wilson",
-      username: "@sarah_w",
-      status: "online",
-      avatar: "/placeholder.svg?height=40&width=40",
-      mutualFriends: 5,
-    },
-    {
-      id: 2,
-      name: "Mike Johnson",
-      username: "@mike_j",
-      status: "away",
-      avatar: "/placeholder.svg?height=40&width=40",
-      mutualFriends: 3,
-    },
-  ],
-  rooms: [
-    {
-      id: 1,
-      name: "Design Discussion",
-      description: "A place for designers to share ideas",
-      members: 124,
-      avatar: "/placeholder.svg?height=40&width=40",
-      category: "Design",
-    },
-    {
-      id: 2,
-      name: "Tech Talk",
-      description: "Latest in technology and development",
-      members: 89,
-      avatar: "/placeholder.svg?height=40&width=40",
-      category: "Technology",
-    },
-  ],
+
+type Message = {
+  id: number
+  text: string
+  sender: string
+  chat: string
+  time: string
+  avatar?: string
+}
+
+type Person = {
+  id: number
+  name: string
+  username: string
+  status?: string
+  avatar?: string
+  mutualFriends?: number
+}
+
+type Room = {
+  id: number
+  name: string
+  description: string
+  members: number
+  avatar?: string
+  category: string
+}
+
+type SearchResults = {
+  messages: Message[]
+  people: Person[]
+  rooms: Room[]
 }
 
 export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [activeTab, setActiveTab] = useState("all")
+  const [searchResults, setSearchResults] = useState<SearchResults>({
+    messages: [],
+    people: [],
+    rooms: [],
+  });
 
+  const [selectedUserId, setselectedUserId] = useState<number | null>(null);
+  const {data: session} = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+// seach the recent 2 people with whom we had convo)
+
+  })
+
+
+  useEffect(() => {
+    fetch("/api/search-recent-convos")
+      .then((res) => res.json())
+      .then((data) =>
+        setSearchResults((prev) => ({ ...prev, people: data.people }))
+      )
+      .catch((err) => console.error("Failed to fetch recent convos", err));
+  }, []);
+
+  // Debounced search
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      // Optional: clear on empty
+      setSearchResults({
+        messages: [],
+        people: [],
+        rooms: [],
+      });
+      return;
+    }
+
+    const delayDebounce = setTimeout(() => {
+      const res=axios.post("http://localhost:5000/api/search", {
+        query: searchQuery,
+      });
+      res.then((response) => {
+        setSearchResults({
+          messages: response.data.messages || [],
+          people: response.data.people || [],
+          rooms: response.data.rooms || [],
+        });
+      }).catch((error) => {
+        console.error("Error during search:", error);
+        setSearchResults({
+          messages: [],
+          people: [],
+          rooms: [],
+        });
+      });
+    }, 500);
+
+    return () => clearTimeout(delayDebounce);
+  }, [searchQuery]);
+
+async function handleMessageClick() {
+  const response = await fetch("http://localhost:5000/api/conversation", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    userId1: (session?.user as { id?: string | number })?.id,
+    userId2: selectedUserId,
+  }),
+});
+
+const convo = await response.json();
+router.push(`/chat/${convo.id}`);
+}
+  
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -171,7 +224,9 @@ export default function SearchPage() {
                         <p className="text-sm text-muted-foreground">{person.username}</p>
                         <p className="text-xs text-muted-foreground">{person.mutualFriends} mutual friends</p>
                       </div>
-                      <Button variant="outline" size="sm">
+                      <Button onClick={()=>{
+                        setselectedUserId(person.id);
+                        handleMessageClick()}} variant="outline" size="sm">
                         Message
                       </Button>
                     </div>

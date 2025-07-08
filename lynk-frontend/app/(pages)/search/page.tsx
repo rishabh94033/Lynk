@@ -119,7 +119,8 @@ async function handleMessageClick() {
 });
 
 const convo = await response.json();
-router.push(`/chat/${convo.id}`);
+
+router.push(`/chat/${convo.data.id}`);
 }
   
   return (

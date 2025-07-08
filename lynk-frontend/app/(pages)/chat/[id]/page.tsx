@@ -8,48 +8,63 @@ import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ArrowLeft, Phone, Video, MoreVertical, Send, Smile, Paperclip } from "lucide-react"
 import Link from "next/link"
+import { useParams, useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 
-const messages = [
-  {
-    id: 1,
-    text: "Hey! How's your day going?",
-    sender: "other",
-    time: "10:30 AM",
-    avatar: "/placeholder.svg?height=32&width=32",
-  },
-  {
-    id: 2,
-    text: "Pretty good! Just finished a big project. How about you?",
-    sender: "me",
-    time: "10:32 AM",
-  },
-  {
-    id: 3,
-    text: "That's awesome! I'm just working on some designs",
-    sender: "other",
-    time: "10:33 AM",
-    avatar: "/placeholder.svg?height=32&width=32",
-  },
-  {
-    id: 4,
-    text: "Would love to see them when you're ready to share!",
-    sender: "me",
-    time: "10:35 AM",
-  },
-  {
-    id: 5,
-    text: "I'll send them over later today",
-    sender: "other",
-    time: "10:36 AM",
-    avatar: "/placeholder.svg?height=32&width=32",
-  },
-]
+// const messages = [
+//   {
+//     id: 1,
+//     text: "Hey! How's your day going?",
+//     sender: "other",
+//     time: "10:30 AM",
+//     avatar: "/placeholder.svg?height=32&width=32",
+//   },
+//   {
+//     id: 2,
+//     text: "Pretty good! Just finished a big project. How about you?",
+//     sender: "me",
+//     time: "10:32 AM",
+//   },
+//   {
+//     id: 3,
+//     text: "That's awesome! I'm just working on some designs",
+//     sender: "other",
+//     time: "10:33 AM",
+//     avatar: "/placeholder.svg?height=32&width=32",
+//   },
+//   {
+//     id: 4,
+//     text: "Would love to see them when you're ready to share!",
+//     sender: "me",
+//     time: "10:35 AM",
+//   },
+//   {
+//     id: 5,
+//     text: "I'll send them over later today",
+//     sender: "other",
+//     time: "10:36 AM",
+//     avatar: "/placeholder.svg?height=32&width=32",
+//   },
+// ]
 
 export default function ChatPage({ params }: { params: { id: string } }) {
   const [newMessage, setNewMessage] = useState("")
-  const [chatMessages, setChatMessages] = useState(messages)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  type Message = {
+    id: number;
+    text: string;
+    sender: "me" | "other";
+    time: string;
+    avatar?: string;
+  };
 
+  const [chatMessages, setChatMessages] = useState<Message[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [participants, setParticipants] = useState([]);
+const router = useRouter();
+
+const { data: session } = useSession();
+const param = useParams();
+const id = param.id;
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
@@ -57,17 +72,60 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     scrollToBottom()
   }, [chatMessages])
+console.log("Conversation ID:", id);
 
-  const handleSendMessage = () => {
-    if (newMessage.trim()) {
-      const message = {
-        id: chatMessages.length + 1,
-        text: newMessage,
-        sender: "me" as const,
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+useEffect(() => {
+    if (!id) return;
+
+    const fetchConversation = async () => {
+      const res = await fetch(`http://localhost:5000/api/conversation/${id}`);
+      const data = await res.json();
+
+      const currentUserId = (session?.user as { id?: string | number })?.id;
+
+      console.log("seesion id:", currentUserId);
+
+    const transformedMessages = data.messages.map((msg: any) => ({
+      id: msg.id,
+      text: msg.content,
+      sender: msg.sender.id === currentUserId ? "me" : "other",
+      time: new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      avatar: "/placeholder.svg",
+    }));
+
+
+      setChatMessages(transformedMessages);
+      setParticipants(data.data.participants);
+    };
+
+    fetchConversation();
+  }, [id]);
+
+
+  const handleSendMessage = async() => {
+    if (!newMessage.trim() || !(session?.user as { id?: string | number })?.id) return
+
+    try {
+      const res = await fetch("http://localhost:5000/api/conversation/messages/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: newMessage,
+          senderId: (session?.user as { id?: string | number })?.id,
+          conversationId: params.id,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (res.ok) {
+        setChatMessages((prev) => [...prev, data])
+        setNewMessage("")
+      } else {
+        console.error("Message send error:", data)
       }
-      setChatMessages([...chatMessages, message])
-      setNewMessage("")
+    } catch (err) {
+      console.error("Error sending message:", err)
     }
   }
 

@@ -15,6 +15,18 @@ messageRouter.get('/check', (req, res) => {
 
 messageRouter.post('/', async (req: Request, res: Response) => {
    const { userId1, userId2 } = req.body;
+
+   const user1 = await prisma.user.findUnique({ where: { id: userId1 } });
+const user2 = await prisma.user.findUnique({ where: { id: userId2 } });
+
+if (!user1) {
+   res.status(400).json({ message: "User1 not found." });
+   return ;
+}
+if (!user2) {
+   res.status(400).json({ message: "User2 not found." });
+   return ;
+}
 const existing = await prisma.conversation.findFirst({
     where: {
   participants: {

@@ -362,6 +362,11 @@ const tempId = uuidv4();
           >
             <Send className="h-4 w-4" />
           </Button>
+          {/* <Link href={`/call/${params.id}`}> */}
+          <Link href={`/call`}>
+
+            <button>go to call</button>
+          </Link>
         </div>
       </div>
     </div>

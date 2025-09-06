@@ -12,6 +12,8 @@ import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { io, Socket } from 'socket.io-client';
 import { useSession } from "next-auth/react"
+import { OutgoingCallPopup } from "@/components/ui/outgoing-call-popup";
+import { IncomingCallPopup } from "@/components/ui/incoming-call-popup"
 
 // const messages = [
 //   {
@@ -64,6 +66,8 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   const [participants, setParticipants] = useState([]);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | number | null>(null);
+  const [otherUserName, setOtherUserName] = useState<string | number | null>(null);
 const router = useRouter();
 const typingTimeout = useRef<NodeJS.Timeout | null>(null);
 const { data: session } = useSession();
@@ -125,6 +129,9 @@ useEffect(() => {
       const data = await res.json();
 
       const currentUserId = (session?.user as { id?: string | number })?.id;
+      setCurrentUserId(currentUserId || null);
+      const otherParticipant= data.participants.find((p: any) => p.id !== currentUserId);
+      setOtherUserName(otherParticipant ? otherParticipant.name : null);
 
       // console.log("seesion id:", currentUserId);
 
@@ -264,6 +271,29 @@ const tempId = uuidv4();
   }, 2000); // you can adjust this timeout
 };
 
+function initiateConn() {
+  const currentUserId = (session?.user as { id?: string | number })?.id;
+  if (!socket || !currentUserId) return;
+
+  socket.emit('start-call', {
+    conversationId,
+    userId: currentUserId
+  });
+}
+
+
+
+const [isCallOpen, setIsCallOpen] = useState(false);
+const [callType, setCallType] = useState<"audio" | "video">("audio")
+  const handleOpenCall = (type: "audio" | "video") => {
+  setCallType(type)
+  setIsCallOpen(true)
+}
+
+  const handleCloseCall = () => {
+    setIsCallOpen(false)
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Chat Header */}
@@ -279,7 +309,7 @@ const tempId = uuidv4();
             <AvatarFallback className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">SW</AvatarFallback>
           </Avatar>
           <div>
-            <h2 className="font-semibold">Sarah Wilson</h2>
+            <h2 className="font-semibold">{otherUserName}</h2>
             <p className="text-xs text-green-500">Online</p>
             {typingUsers.length > 0 && (
           <div className="typing-indicator">
@@ -290,17 +320,29 @@ const tempId = uuidv4();
         </div>
 
         <div className="flex items-center space-x-2">
-          <Button variant="ghost" size="icon" className="h-8 w-8">
+          <Button  onClick={() => handleOpenCall("audio")} variant="ghost" size="icon" className="h-8 w-8">
             <Phone className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
+          
+          <Button onClick={() => handleOpenCall("video")}  variant="ghost" size="icon" className="h-8 w-8">
             <Video className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
+          
+      
+          <Button    variant="ghost" size="icon" className="h-8 w-8">
             <MoreVertical className="h-4 w-4" />
           </Button>
         </div>
       </div>
+          
+
+      <OutgoingCallPopup 
+        isOpen={isCallOpen}
+        onClose={handleCloseCall}
+        callType={callType}
+        contactName="Rishabh"
+        contactAvatar="/placeholder.svg"
+      />
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -365,7 +407,7 @@ const tempId = uuidv4();
           {/* <Link href={`/call/${params.id}`}> */}
           <Link href={`/call`}>
 
-            <button>go to call</button>
+            {/* <button onClick={initiateConn}>go to call</button> */}
           </Link>
         </div>
       </div>
